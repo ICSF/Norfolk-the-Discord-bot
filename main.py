@@ -151,7 +151,7 @@ async def on_ready():
     global icsf
     print('We have logged in as {0.user}'.format(client))
     icsf = client.get_guild(430437751603724319)
-    await client.change_presence(activity=discord.Game(name='just wanted to say hi'))
+    await client.change_presence(activity=discord.Game(name='ready for Halloween?'))
 
 
 @client.event
@@ -166,18 +166,44 @@ async def on_message(message):
     #     await message.channel.send('EGG')
     #     await message.delete()
 
-    if message.content.startswith('!halloween_vote'):
+    if message.content.startswith('!halloween_vote') and message.author.id == 133647238235815936:
         await message.delete()
-        await message.channel.send("Voting has begun!\n\n**You have three votes:** 3 points, 2 points, and 1 point. "
-                                   "Give them to 3 separate people! Or one person, if you _really_ want to.\n\n"
-                                   "Click on the reactions below the posts to give the points.")
         global votes
         votes = {}
-        async for m in message.channel.history(limit=100):
+        async for m in message.channel.history(limit=5):
             await m.clear_reactions()
             await m.add_reaction("3️⃣")
             await m.add_reaction("2️⃣")
             await m.add_reaction("1️⃣")
+        await message.channel.send("Voting has begun!\n\n**You have three votes:** 3 points, 2 points, and 1 point.\n"
+                                   "The total number of points will be summed up for each participant, and the "
+                                   "winner chosen based on the sum of points they are given!\n\n"
+                                   "Here are some rules:\n"
+                                   "* Assign your points to 3 separate people.\n"
+                                   "* You can only give each number of points once, for example only one person gets "
+                                   "3️⃣ points from you.\n"
+                                   "* You cannot vote for yourself.\n\n"
+                                   "**Click on the reactions below the posts to assign the points.** Click again to "
+                                   "remove them if you change your mind.")
+
+    if message.content.startswith('!halloween_count') and message.author.id == 133647238235815936:
+        await message.delete()
+        totals = {}
+        for voter in votes.keys():
+            for points in votes[voter].keys():
+                p = int(points[0])
+                human = votes[voter][points].author
+                if human in totals:
+                    totals[human] += p
+                else:
+                    totals[human] = p
+        text = "**"+"-"*60+"**\n"+"**Here are our SPOOKY winners!**\n\n"
+        i = 1
+        for user, score in sorted(totals.items(), key=lambda item: item[1], reverse=True):
+            text += "{}. `<@{}>` - {} points\n".format(i, user.id, score)
+            i += 1
+        await message.channel.send(text)
+
 
     if message.content.startswith('!eddify') or message.content.startswith('!ellify'):
         await message.channel.send(message.content[8:].replace("l", "#").replace("d", "l").replace("#", "d").replace("L", "#").replace("D", "L").replace("#", "D"))
@@ -187,26 +213,10 @@ async def on_message(message):
 
 
 @client.event
-async def on_reaction_add(reaction, user):
-    message = reaction.message
-    emoji = reaction.emoji
-    if message.channel.id == 770563414925246466:
-        if user in votes and emoji in votes[user] and votes[user][emoji]:
-            user.send("You can only give {} points to one user. Right now you've given it to <@{}>. In order to give "
-                      "it to someone else you'll need to remove it from this message: {}.\n\nChoose wisely!".format(
-                        emoji, message.author.id, message.jump_url
-                      ))
-            await reaction.remove()
-        else:
-            votes[user][reaction.emoji] = message
-
-
-@client.event
 async def on_reaction_remove(reaction, user):
     message = reaction.message
     if message.channel.id == 770563414925246466:
         votes[user][reaction.emoji] = None
-
 
 
 @client.event
@@ -219,7 +229,61 @@ async def on_raw_reaction_add(payload):
         cons.append(con)
         await con.go()
 
+    if (
+            payload.channel_id == 770563414925246466 and
+            payload.user_id != 767851328092766268 and
+            str(payload.emoji) in ("3️⃣", "2️⃣", "1️⃣")
+    ):
+        message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
+        user = client.get_user(payload.user_id)
+        emoji = str(payload.emoji)
+        if user.id in votes and emoji in votes[user.id] and votes[user.id][emoji]:
+            await message.remove_reaction(emoji, user)
+            await user.send("**"+"-"*60+"**\n"
+                            "You can only give {} points to one user. Right now you've given it to <@{}>. In order to "
+                            "give it to someone else you'll need to remove it from this message: "
+                            "https://discord.com/channels/430437751603724319/770563414925246466/{}.\n\n"
+                            "Choose wisely!".format(
+                                emoji, votes[user.id][emoji].author.id, votes[user.id][emoji].id
+                            ))
+        elif user.id in votes and message in [votes[user.id][x] for x in ("3️⃣", "2️⃣", "1️⃣") if x in votes[user.id]]:
+            await message.remove_reaction(emoji, user)
+            await user.send("**" + "-" * 60 + "**\n"
+                            "You can only give one reaction to each user. You've already given some points to <@{}>.\n"
+                            "Share them with others!\n\n"
+                            "Remember that you can change your mind and remove reactions until the "
+                            "voting closes!".format(message.author.id))
+        elif user.id == message.author.id:
+            await message.remove_reaction(emoji, user)
+            await user.send("**"+"-"*60+"**\n"
+                            "Please don't vote for yourself, that's no fun!")
+        else:
+            if user.id not in votes:
+                votes[user.id] = {}
+            print("{} voted for {}".format(user.id, message.id))
+            votes[user.id][emoji] = message
+
+        # print(votes)
+
     for con in [x for x in cons if payload.channel_id == x.channel.id]:
         await con.reaction(payload)
+
+
+@client.event
+async def on_raw_reaction_remove(payload):
+    # print(payload)
+    if (
+            payload.channel_id == 770563414925246466 and
+            payload.user_id != 767851328092766268 and
+            str(payload.emoji) in ("3️⃣", "2️⃣", "1️⃣")
+    ):
+        if (
+            payload.user_id in votes and
+            str(payload.emoji) in votes[payload.user_id] and
+            votes[payload.user_id][str(payload.emoji)] and
+            votes[payload.user_id][str(payload.emoji)].id == payload.message_id
+        ):
+            votes[payload.user_id][str(payload.emoji)] = None
+
 
 client.run(secrets.token)

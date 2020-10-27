@@ -143,6 +143,9 @@ client = discord.Client()
 icsf = None
 
 
+votes = {}
+
+
 @client.event
 async def on_ready():
     global icsf
@@ -163,11 +166,47 @@ async def on_message(message):
     #     await message.channel.send('EGG')
     #     await message.delete()
 
+    if message.content.startswith('!halloween_vote'):
+        await message.delete()
+        await message.channel.send("Voting has begun!\n\n**You have three votes:** 3 points, 2 points, and 1 point. "
+                                   "Give them to 3 separate people! Or one person, if you _really_ want to.\n\n"
+                                   "Click on the reactions below the posts to give the points.")
+        global votes
+        votes = {}
+        async for m in message.channel.history(limit=100):
+            await m.clear_reactions()
+            await m.add_reaction("3️⃣")
+            await m.add_reaction("2️⃣")
+            await m.add_reaction("1️⃣")
+
     if message.content.startswith('!eddify') or message.content.startswith('!ellify'):
         await message.channel.send(message.content[8:].replace("l", "#").replace("d", "l").replace("#", "d").replace("L", "#").replace("D", "L").replace("#", "D"))
 
     for con in [x for x in cons if message.channel == x.channel]:
         await con.receive(message)
+
+
+@client.event
+async def on_reaction_add(reaction, user):
+    message = reaction.message
+    emoji = reaction.emoji
+    if message.channel.id == 770563414925246466:
+        if user in votes and emoji in votes[user] and votes[user][emoji]:
+            user.send("You can only give {} points to one user. Right now you've given it to <@{}>. In order to give "
+                      "it to someone else you'll need to remove it from this message: {}.\n\nChoose wisely!".format(
+                        emoji, message.author.id, message.jump_url
+                      ))
+            await reaction.remove()
+        else:
+            votes[user][reaction.emoji] = message
+
+
+@client.event
+async def on_reaction_remove(reaction, user):
+    message = reaction.message
+    if message.channel.id == 770563414925246466:
+        votes[user][reaction.emoji] = None
+
 
 
 @client.event

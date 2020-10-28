@@ -198,12 +198,14 @@ async def on_message(message):
                 else:
                     totals[human] = p
         text = "**"+"-"*60+"**\n"+"**Here are our SPOOKY winners!**\n\n"
-        i = 1
+        i = 0
+        prev_score = 0
         for user, score in sorted(totals.items(), key=lambda item: item[1], reverse=True):
+            if score != prev_score:
+                i += 1
             text += "{}. `<@{}>` - {} points\n".format(i, user.id, score)
-            i += 1
+            prev_score = score
         await message.channel.send(text)
-
 
     if message.content.startswith('!eddify') or message.content.startswith('!ellify'):
         await message.channel.send(message.content[8:].replace("l", "#").replace("d", "l").replace("#", "d").replace("L", "#").replace("D", "L").replace("#", "D"))

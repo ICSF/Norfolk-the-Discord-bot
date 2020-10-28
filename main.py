@@ -170,7 +170,7 @@ async def on_message(message):
         await message.delete()
         global votes
         votes = {}
-        async for m in message.channel.history(limit=5):
+        async for m in message.channel.history(limit=100):
             await m.clear_reactions()
             await m.add_reaction("3️⃣")
             await m.add_reaction("2️⃣")
@@ -182,7 +182,9 @@ async def on_message(message):
                                    "* Assign your points to 3 separate people.\n"
                                    "* You can only give each number of points once, for example only one person gets "
                                    "3️⃣ points from you.\n"
-                                   "* You cannot vote for yourself.\n\n"
+                                   "* You cannot vote for yourself.\nIf your reaction is removed, it will be for "
+                                   "violating one of these rules - look out for a direct message from "
+                                   "<@767851328092766268> with an explanation!\n\n"
                                    "**Click on the reactions below the posts to assign the points.** Click again to "
                                    "remove them if you change your mind.")
 
@@ -203,7 +205,7 @@ async def on_message(message):
         for user, score in sorted(totals.items(), key=lambda item: item[1], reverse=True):
             if score != prev_score:
                 i += 1
-            text += "{}. `<@{}>` - {} points\n".format(i, user.id, score)
+            text += "{}. <@{}> - {} points\n".format(i, user.id, score)
             prev_score = score
         await message.channel.send(text)
 

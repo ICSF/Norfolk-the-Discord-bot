@@ -1,2 +1,4 @@
-token = "Discord bot token here"
-eActivities = "eActivities API token here"
+from os import environ
+
+token = os.environ['D_KEY']
+eActivities = os.environ['E_KEY']

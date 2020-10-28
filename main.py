@@ -194,6 +194,8 @@ async def on_message(message):
         for voter in votes.keys():
             for points in votes[voter].keys():
                 p = int(points[0])
+                if votes[voter][points] is None:
+                    continue
                 human = votes[voter][points].author
                 if human in totals:
                     totals[human] += p

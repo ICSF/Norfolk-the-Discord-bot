@@ -1,4 +1,4 @@
 from os import environ
 
-token = os.environ['D_KEY']
-eActivities = os.environ['E_KEY']
+token = environ['D_KEY']
+eActivities = environ['E_KEY']

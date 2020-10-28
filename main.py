@@ -222,6 +222,8 @@ async def on_message(message):
 async def on_reaction_remove(reaction, user):
     message = reaction.message
     if message.channel.id == 770563414925246466:
+        if user not in votes:
+            votes[user] = {}
         votes[user][reaction.emoji] = None
 
 

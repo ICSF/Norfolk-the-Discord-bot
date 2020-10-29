@@ -203,9 +203,11 @@ async def on_message(message):
                                    "remove them if you change your mind.")
 
     if message.content.startswith('!halloween_enforce') and message.author.id == 133647238235815936:
+        dm = len(message.content.split(" ")) <= 1
         await message.delete()
         # Get all of the votes
         votes = await construct_votes(message)
+        scores = {}
         # Make a list of users who have violated some rules
         violations = []
 
@@ -224,9 +226,11 @@ async def on_message(message):
                     text = "**" + "-" * 60 + "**\n"+"You can only give {} points to one user. Right now you've given " \
                            "it to these messages:\n* ".format(emoji)
                     text += "\n* ".join(["<@" + str(vote.author.id) + ">: " + vote.jump_url for vote in votes[user][emoji]])
-                    text += "\n\n **Please remove some of these so that only one remains, otherwise your vote " \
+                    text += "\n\n **Please remove some of these so that only one remains, otherwise your votes " \
                             "won't count!**"
-                    await user.send(text)
+                    if dm:
+                        await user.send(text)
+                    print([vote.jump_url for vote in votes[user][emoji]])
                     if user not in violations:
                         violations.append(user)
 
@@ -237,51 +241,51 @@ async def on_message(message):
                         print(user, "self-voting")
                         if user not in violations:
                             violations.append(user)
-                        await user.send("**" + "-" * 60 + "**\n"
-                                        "Please don't vote for yourself, that's no fun! \n\n Remove the reaction "
-                                        "from {}.".format(vote.jump_url))
+                        if dm:
+                            await user.send("**" + "-" * 60 + "**\n"
+                                            "Please don't vote for yourself, that's no fun! \n\n Remove the reaction "
+                                            "from {}.".format(vote.jump_url))
 
                     # More than one vote per message
                     if vote in seen:
                         print(user, "more-than-one")
                         if user not in violations:
                             violations.append(user)
-                        await user.send("**" + "-" * 60 + "**\n"
-                                        "You can only give one reaction to each user. You've given too many points "
-                                        "to <@{}>.\n"
-                                        "Share them with others!\n\n"
-                                        "Please remove some votes from {}.".format(vote.author.id, vote.jump_url))
+                        if dm:
+                            await user.send("**" + "-" * 60 + "**\n"
+                                            "You can only give one reaction to each user. You've given too many points "
+                                            "to <@{}>.\n"
+                                            "Share them with others!\n\n"
+                                            "Please remove some votes from {}.".format(vote.author.id, vote.jump_url))
+                        print(vote.jump_url)
                 seen.extend(votes[user][emoji])
+            # If no violations for the user, count their votes
+            if user not in violations:
+                for emoji in votes[user].keys():
+                    points = int(emoji[0])
+                    author = votes[user][emoji][0].author
+                    if author not in scores:
+                        scores[author] = points
+                    else:
+                        scores[author] += points
+        # Send a summary of votes
+        text = "**Here are our SPOOKY winners!**\n\n"
+        i = 0
+        prev_score = 0
+        for user, score in sorted(scores.items(), key=lambda item: item[1], reverse=True):
+            if score != prev_score:
+                i += 1
+            text += "{}. <@{}>: {} points\n".format(i, user.id, score)
+            prev_score = score
+        await client.get_channel(689605126465388552).send(text)
+
         if len(violations):
             text = "Some voting mistakes have been made by <@"
             text += ">, <@".join([str(u.id) for u in violations])
             text += ">.\n\nPlease check your direct messages for details."
             await message.channel.send(text)
-
-        # print(votes)
-
-    if message.content.startswith('!halloween_count') and message.author.id == 133647238235815936:
-        await message.delete()
-        totals = {}
-        for voter in votes.keys():
-            for points in votes[voter].keys():
-                p = int(points[0])
-                if votes[voter][points] is None:
-                    continue
-                human = votes[voter][points].author
-                if human in totals:
-                    totals[human] += p
-                else:
-                    totals[human] = p
-        text = "**"+"-"*60+"**\n"+"**Here are our SPOOKY winners!**\n\n"
-        i = 0
-        prev_score = 0
-        for user, score in sorted(totals.items(), key=lambda item: item[1], reverse=True):
-            if score != prev_score:
-                i += 1
-            text += "{}. <@{}> - {} points\n".format(i, user.name, score)
-            prev_score = score
-        await message.channel.send(text)
+        else:
+            await message.channel.send("No voting mistakes were made!")
 
     if message.content.startswith('!eddify') or message.content.startswith('!ellify'):
         await message.channel.send(message.content[8:].replace("l", "#").replace("d", "l").replace("#", "d").replace("L", "#").replace("D", "L").replace("#", "D"))

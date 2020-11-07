@@ -159,9 +159,9 @@ async def on_message(message):
     if message.content.startswith('$hello'):
         await message.channel.send('Hello!')
 
-    # if message.content.startswith('$egg'):
-    #     await message.channel.send('EGG')
-    #     await message.delete()
+    if message.content.startswith('$egg'):
+        await message.channel.send('EGG')
+        await message.delete()
 
     if message.content.startswith('!eddify') or message.content.startswith('!ellify'):
         await message.channel.send(message.content[8:].replace("l", "#").replace("d", "l").replace("#", "d").replace("L", "#").replace("D", "L").replace("#", "D"))

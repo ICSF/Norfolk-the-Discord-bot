@@ -166,13 +166,26 @@ async def on_message(message):
     if message.content.startswith('!eddify') or message.content.startswith('!ellify'):
         await message.channel.send(message.content[8:].replace("l", "#").replace("d", "l").replace("#", "d").replace("L", "#").replace("D", "L").replace("#", "D"))
 
+    if message.content.startswith('!nsend') and message.author.guild_permissions.administrator:
+        s = message.content.split(" ")
+        channel = client.get_channel(int(s[1][2:-1]))
+        contents = " ".join(s[2:])
+        await channel.send(contents)
+
+    if message.content.startswith('!nedit') and message.author.guild_permissions.administrator:
+        s = message.content.split(" ")
+        channel = client.get_channel(int(s[1][2:-1]))
+        message = await channel.fetch_message(int(s[2]))
+        contents = " ".join(s[3:])
+        await message.edit(content=contents)
+
     for con in [x for x in cons if message.channel == x.channel]:
         await con.receive(message)
 
 
 @client.event
 async def on_raw_reaction_add(payload):
-    if payload.message_id == 769997390051672144 and payload.event_type == "REACTION_ADD":
+    if payload.message_id == 774771312983408681 and payload.event_type == "REACTION_ADD":
         user = client.get_user(payload.user_id)
         if user.dm_channel is None:
             await user.create_dm()

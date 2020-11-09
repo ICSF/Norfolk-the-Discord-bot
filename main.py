@@ -1,5 +1,6 @@
 import discord
 import secrets
+from asyncio import sleep
 from aiohttp import ClientSession, BasicAuth
 
 
@@ -192,6 +193,17 @@ async def on_raw_reaction_add(payload):
         con = MembershipCon(user.dm_channel)
         cons.append(con)
         await con.go()
+
+    if payload.message_id == 774760325513216040 and payload.event_type == "REACTION_ADD":
+        user = client.get_user(payload.user_id)
+        await user.send("**"+"-"*60+"**\n\nThank you for scrolling up! The surprise is a picture of a cute dog and "
+                                    "will be delivered promptly.\n\n"
+                        "Fetching cute dog...")
+        await sleep(5)
+        await user.send("Retrieval complicated by the dog not liking Daleks. Retrying...")
+        await sleep(4)
+        await user.send("https://cdn.discordapp.com/attachments/767860174777614356/775475752941518878/277e031b-e366-43b3-9511-54a6df59ecd5.png")
+        await user.send("There it is!")
 
     for con in [x for x in cons if payload.channel_id == x.channel.id]:
         await con.reaction(payload)

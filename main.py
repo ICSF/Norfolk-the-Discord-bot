@@ -117,7 +117,7 @@ class MembershipCon(Conversation):
                      "You can delete it from this chat once the verification process is complete, and we will use it "
                      "one time to **verify your membership** and then discard it.\n"
                      "_You can find your order number in an email from the Union Shop confirming your membership "
-                     "purchase. Search your inbox for 'Your Order at Imperial College Union' to find it._"],
+                     "purchase. Search your inbox for_ \"Your Order at Imperial College Union\" _to find it._"],
             "interaction": {
                 "type": "input",
                 "store_as": "order",

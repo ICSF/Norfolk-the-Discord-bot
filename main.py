@@ -204,6 +204,9 @@ async def on_raw_reaction_add(payload):
         await sleep(4)
         await user.send("https://cdn.discordapp.com/attachments/767860174777614356/775475752941518878/277e031b-e366-43b3-9511-54a6df59ecd5.png")
         await user.send("There it is!")
+        await sleep(2)
+        await user.send("Now click this link to get back to role selection: "
+                        "https://discord.com/channels/430437751603724319/767849852863643659/774760325513216040")
 
     for con in [x for x in cons if payload.channel_id == x.channel.id]:
         await con.reaction(payload)

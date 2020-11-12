@@ -65,7 +65,7 @@ class MembershipCon(Conversation):
                     js = await r.json()
                     for person in js:
                         if person["CID"] == self.CID:
-                            await self.channel.send("Hi {}, you are a Member! **I've given you the role.**".format(person["FirstName"]))
+                            await self.channel.send("OK, you are a Member! **I've given you the role.**")
                             member = await icsf.fetch_member(self.channel.recipient.id)
                             await member.add_roles(icsf.get_role(769685221695029258))
                             return self.finish
@@ -80,7 +80,7 @@ class MembershipCon(Conversation):
                     js = await r.json()
                     for person in js:
                         if str(person["OrderNo"]) == self.order.replace(" ", ""):
-                            await self.channel.send("Hi {}, you are a Member! **I've given you the role.**".format(person["FirstName"]))
+                            await self.channel.send("OK, you are a Member! **I've given you the role.**")
                             member = await icsf.fetch_member(self.channel.recipient.id)
                             await member.add_roles(icsf.get_role(769685221695029258))
                             return self.finish

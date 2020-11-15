@@ -180,6 +180,9 @@ async def on_message(message):
         contents = " ".join(s[3:])
         await message.edit(content=contents)
 
+    if message.content.startswith('!playing') and message.author.guild_permissions.administrator:
+        await client.change_presence(activity=discord.Game(name=message.content[8:]))
+
     for con in [x for x in cons if message.channel == x.channel]:
         await con.receive(message)
 

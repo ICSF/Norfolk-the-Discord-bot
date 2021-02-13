@@ -1,5 +1,6 @@
 import discord
 import secrets
+import sqlite3
 
 
 client = discord.Client()
@@ -7,7 +8,7 @@ client = discord.Client()
 
 @client.event
 async def on_ready():
-    global icsf
+    client.dbconn = sqlite3.connect('main.db')
     print('We have logged in as {0.user}'.format(client))
     await client.change_presence(activity=discord.Game(name='such pico, much con'))
 
@@ -16,6 +17,9 @@ async def on_ready():
 async def on_message(message):
     if message.author == client.user:
         return
+
+    if message.content.startswith('!nping'):
+        await message.channel.send('npong!')
 
 
 @client.event

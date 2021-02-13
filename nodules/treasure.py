@@ -132,12 +132,17 @@ class Nodule(CoreNodule):
                 ), color=color)
                 await message.channel.send(embed=embed)
 
-
-
-
     async def on_raw_reaction_add(self, payload):
         if payload.channel_id == 807945982556897301 and payload.message_id == 810241676937003018:
             role_ids = [x.id for x in payload.member.roles]
             if (not any([x in role_ids for x in self.roles.values()])) and payload.emoji.name in self.roles.keys():
                 role = self.client.picoguild.get_role(self.roles[payload.emoji.name])
                 await payload.member.add_roles(role)
+
+                # Send welcome message
+                cursor = self.client.dbconn.execute("SELECT * FROM teams WHERE teams.role_id=?",
+                                                    (self.roles[payload.emoji.name],))
+                row = cursor.fetchone()
+                await self.client.get_channel(row["channel_id"]).send("Welcome to Team **{}**, <@{}>!".format(
+                    row["name"], payload.member.id
+                ))

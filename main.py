@@ -12,6 +12,7 @@ client = discord.Client()
 async def on_ready():
     client.dbconn = sqlite3.connect('main.db')
     client.nodules = [x.Nodule(client) for x in (modmessage, treasure)]
+    client.picoguild = client.get_guild(807940337020567589)
 
     print('We have logged in as {0.user}'.format(client))
     await client.change_presence(activity=discord.Game(name='such pico, much con'))

@@ -1,9 +1,9 @@
-class Nodule:
+class CoreNodule:
     def __init__(self, client):
         self.client = client
 
-    def on_message(self, message):
+    async def on_message(self, message):
         pass
 
-    def on_raw_reaction_add(self, payload):
+    async def on_raw_reaction_add(self, payload):
         pass

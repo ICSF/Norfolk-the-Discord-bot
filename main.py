@@ -2,7 +2,7 @@ import discord
 import secrets
 import sqlite3
 
-from nodules import modmessage, treasure
+from nodules import modmessage, treasure, picocoin
 
 
 client = discord.Client()
@@ -12,7 +12,7 @@ client = discord.Client()
 async def on_ready():
     client.dbconn = sqlite3.connect('main.db')
     client.dbconn.row_factory = sqlite3.Row
-    client.nodules = [x.Nodule(client) for x in (modmessage, treasure)]
+    client.nodules = [x.Nodule(client) for x in (modmessage, treasure, picocoin)]
     client.picoguild = client.get_guild(807940337020567589)
 
     print('We have logged in as {0.user}'.format(client))

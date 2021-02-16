@@ -35,7 +35,7 @@ class Nodule(CoreNodule):
         super().__init__(client)
 
     async def on_message(self, message):
-        if message.content.startswith('!fishmarket') and message.author.guild_permissions.administrator:
+        if message.content.startswith('!_fishmarket') and message.author.guild_permissions.administrator:
             channel = message.channel
             await message.delete()
             cursor = self.client.dbconn.execute("SELECT * FROM fish")
@@ -50,6 +50,10 @@ class Nodule(CoreNodule):
                 self.client.dbconn.execute("UPDATE fish SET message_id=(?) WHERE id=?", (m.id, row["id"]))
                 self.client.dbconn.commit()
 
+        if message.content.startswith('!fish'):
+            self.ensure_fish(message.author.id)
+            await self.fish_arsenal(message.channel, message.author.id)
+
         if message.content.startswith('!slap'):
             self.ensure_fish(message.author.id)
 
@@ -57,7 +61,7 @@ class Nodule(CoreNodule):
         self.client.dbconn.execute("INSERT OR IGNORE INTO hp (user_id) VALUES (?)", (user_id,))
         self.client.dbconn.commit()
         cursor = self.client.dbconn.execute(
-            "SELECT * FROM fish_ownership INNER JOIN hp on fish_ownership.owner=hp.user_id WHERE hp.user_id=?",
+            "SELECT * FROM fish_ownership INNER JOIN hp on fish_ownership.owner=hp.id WHERE hp.user_id=?",
             (user_id,)
         )
         if not cursor.fetchone():
@@ -69,9 +73,44 @@ class Nodule(CoreNodule):
     async def on_raw_reaction_add(self, payload):
         if payload.channel_id == 810500564395098142:
             cursor = self.client.dbconn.execute("SELECT * FROM fish WHERE message_id=?", (payload.message_id,))
+            user = self.client.get_user(payload.user_id)
             row = cursor.fetchone()
             if row:
+                try:
+                    total = self.client.picocoin.take(payload.user_id, row["price"])
+                except ValueError:
+                    total = self.client.picocoin.check(payload.user_id)
+                    embed = Embed(
+                        description="**You don't have enough Picocoin to purhcase this fish.** You have {:.2f}, but you need {:.2f}.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
+                            total, row["price"]
+                        ),
+                        colour=Colour.red())
+                    await user.send(embed=embed)
                 cursor = self.client.dbconn.execute("SELECT id FROM hp WHERE user_id=?", (payload.user_id,))
                 owner_id = cursor.fetchone()["id"]
                 self.client.dbconn.execute("INSERT INTO fish_ownership (owner, fish) VALUES (?, ?)", (owner_id, row["id"]))
                 self.client.dbconn.commit()
+                embed = Embed(
+                    description="**You have purchased {} for {:.2f} Picocoin.** You have {:.2f} Picocoin remaining.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
+                        row["name"], row["price"], total
+                    ),
+                    colour=Colour.green())
+                await user.send(embed=embed)
+                await self.fish_arsenal(user, user.id)
+
+    async def fish_arsenal(self, channel, user_id):
+        text = "{:>15} | {:>7} | {:>6} | {:>7}\n".format("Fish", "Quality", "Attack", "Defence")
+        text += "-"*44+"\n"
+        cursor = self.client.dbconn.execute("SELECT name, quality, attack, defence FROM fish_ownership INNER JOIN hp ON hp.id = fish_ownership.owner INNER JOIN fish ON fish.id=fish_ownership.fish WHERE hp.user_id=?",
+                                            (user_id,))
+        attack = defence = 0
+        for row in cursor:
+            text += "{:>15} |    {:01.2f} | {:6.2f} | {:7.2f}\n".format(row["name"], row["quality"], row["attack"]*row["quality"], row["defence"]*row["quality"])
+            attack += row["attack"]*row["quality"]
+            defence += row["defence"]*row["quality"]
+        text += "-" * 44 + "\n"
+        text += " "*28 + "{:6.2f} | {:7.2f}".format(attack, defence)
+        embed = Embed(title="Your fish arsenal",
+                      description="```{}```".format(text),
+                      colour=Colour.from_rgb(135, 169, 224))
+        await channel.send(embed=embed)

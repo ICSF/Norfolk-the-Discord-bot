@@ -77,6 +77,11 @@ class Nodule(CoreNodule):
                                  PRIMARY KEY("id" AUTOINCREMENT)
                                  );''')
         client.dbconn.execute("INSERT OR IGNORE INTO donations_info (id) VALUES (1)")
+        client.dbconn.execute('''CREATE TABLE IF NOT EXISTS "donations_processed" (
+                                         "id" INTEGER UNIQUE,
+                                         "donation_id" INTEGER,
+                                         PRIMARY KEY("id" AUTOINCREMENT)
+                                         );''')
         client.dbconn.commit()
 
         client.picocoin = Picocoin(client.dbconn)
@@ -139,6 +144,31 @@ class Nodule(CoreNodule):
     @loop(seconds=15)
     async def get_donations(self, message=None):
         donations = await self.donations()
+        if donations:
+            cursor = self.client.dbconn.execute("SELECT donation_id FROM donations_processed")
+            processed = [row["donation_id"] for row in cursor]
+            members = await self.client.picoguild.fetch_members(limit=150).flatten()
+            for donation in donations:
+                if donation["id"] in processed:
+                    continue
+                if donation["thirdPartyReference"]:
+                    async with ClientSession() as session:
+                        async with session.get('https://www.union.ic.ac.uk/scc/icsf/donate/get.php?id={}'.format(donation["thirdPartyReference"])) as r:
+                            if r.status == 200:
+                                username = await r.text()
+                                if username:
+                                    try:
+                                        member = [x for x in members if (x.name+"#"+x.discriminator)==username][0]
+                                        self.client.dbconn.execute("INSERT INTO donations_processed (donation_id) VALUES (?)", (donation["id"],))
+                                        total = self.client.picocoin.give(member.id, float(donation["amount"]))
+                                        await self.client.get_channel(810297672510472243).send(
+                                            "<@{}> donated, and got {:.2f} Picocoin! Their total is now {:.2f} Picocoin.".format(
+                                                member.id, float(donation["amount"]), total
+                                            )
+                                        )
+                                    except IndexError:
+                                        continue
+
 
     async def donations(self, message=None):
         total = await get_total()

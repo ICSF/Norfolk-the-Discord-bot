@@ -92,14 +92,14 @@ class Nodule(CoreNodule):
             _, user, amount, = message.content.split(" ")
             try:
                 total = self.client.picocoin.give(user[3:-1], float(amount))
-                embed = Embed(description="<:picocoin:810623980222021652> {} was given **{:.2f} Picocoin**. They now have **{:.2f} Picocoin**.".format(
+                embed = Embed(description="<:picocoin:810623980222021652> {} was given **{:.2f} Picocoin**. They now have **{:.2f} Picocoin**.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
                     user, float(amount), total
                   ),
                   colour=Colour.green())
                 await message.channel.send(embed=embed)
             except ValueError:
                 total = self.client.picocoin.check(user[3:-1])
-                embed = Embed(description="<:picocoin:810623980222021652> Please provide a valid amount. {} has {} Picocoin.".format(
+                embed = Embed(description="<:picocoin:810623980222021652> Please provide a valid amount. {} has {} Picocoin.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
                     user, total
                   ),
                   colour=Colour.red())
@@ -109,7 +109,7 @@ class Nodule(CoreNodule):
             _, user, amount, = message.content.split(" ")
             try:
                 total = self.client.picocoin.take(user[3:-1], float(amount))
-                embed = Embed(description="<:picocoin:810623980222021652> {} has paid **{:.2f} Picocoin**. They now have **{:.2f} Picocoin**.".format(
+                embed = Embed(description="<:picocoin:810623980222021652> {} has paid **{:.2f} Picocoin**. They now have **{:.2f} Picocoin**.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
                     user, float(amount), total
                 ),
                     colour=Colour.green())
@@ -117,7 +117,7 @@ class Nodule(CoreNodule):
             except ValueError:
                 total = self.client.picocoin.check(user[3:-1])
                 embed = Embed(
-                    description="<:picocoin:810623980222021652> Please provide a valid amount. {} has {} Picocoin.".format(
+                    description="<:picocoin:810623980222021652> Please provide a valid amount. {} has {} Picocoin.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
                         user, total
                     ),
                     colour=Colour.red())
@@ -125,18 +125,18 @@ class Nodule(CoreNodule):
 
         if message.content.startswith('!picocoin'):
             total = self.client.picocoin.check(message.author.id)
-            embed = Embed(description="<:picocoin:810623980222021652> You ({}) have **{:.2f} Picocoin**.".format(message.author.mention, total),
+            embed = Embed(description="<:picocoin:810623980222021652> You ({}) have **{:.2f} Picocoin**.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(message.author.mention, total),
                 colour=Colour.green())
             await message.channel.send(embed=embed)
 
         if message.content.startswith('!balance') and message.author.guild_permissions.administrator:
             _, user,  = message.content.split(" ")
             total = self.client.picocoin.check(user[3:-1])
-            embed = Embed(description="<:picocoin:810623980222021652> {} has **{:.2f} Picocoin**.".format(user, total),
+            embed = Embed(description="<:picocoin:810623980222021652> {} has **{:.2f} Picocoin**.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(user, total),
                           colour=Colour.green())
             await message.channel.send(embed=embed)
 
-    @loop(seconds=30)
+    @loop(seconds=15)
     async def get_donations(self, message=None):
         donations = await self.donations()
 
@@ -153,7 +153,7 @@ class Nodule(CoreNodule):
             self.client.dbconn.commit()
 
         number, donations = await get_donations()
-        embed = Embed(title="Charity donations", description="Donate now at https://icsf.org.uk/donate",
+        embed = Embed(title="Charity donations", description="Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/",
                       colour=Colour.from_rgb(202, 138, 0))
         if message:
             embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/808080178965381171/810481381971853312/picocoin.gif")

@@ -41,7 +41,7 @@ class Nodule(CoreNodule):
             channel = self.client.get_channel(self.channel_ids[table-1])
             embed = Embed(
                 description="Attempting to set the channel description...",
-                colour=Colour.red())
+                colour=Colour.from_rgb(194, 124, 14))
             embed.set_footer(text="Note - this can only be done ~2 times per 10 minutes.")
             await message.channel.send(embed=embed)
 

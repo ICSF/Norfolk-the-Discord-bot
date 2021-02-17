@@ -1,5 +1,6 @@
 from . import CoreNodule
 from discord import Embed, Colour
+import random
 
 
 class Nodule(CoreNodule):
@@ -55,7 +56,71 @@ class Nodule(CoreNodule):
             await self.fish_arsenal(message.channel, message.author.id)
 
         if message.content.startswith('!slap'):
+            if message.channel.id != 810500594962923521:
+                embed = Embed(title="Have some decency!",
+                              description="Fish slapping is only permitted in <#810500594962923521>.",
+                              colour=Colour.red())
+                await message.channel.send(embed=embed)
+                return
+
             self.ensure_fish(message.author.id)
+            try:
+                _, user, = message.content.split(" ")
+                target_id = user[3:-1]
+            except ValueError:
+                embed = Embed(title="Incorrect argument",
+                              description="The syntax is `!slap <user mention>`\nFor example: !slap <@!810233904506077205>",
+                              colour=Colour.red())
+                await message.channel.send(embed=embed)
+                return
+            self.ensure_fish(target_id)
+
+            # Get the attack stats
+            text = "```{:>15} | {:>7} | {:>6}\n".format("Fish", "Quality", "Attack", "Defence")
+            text += "-" * 34 + "\n"
+            cursor = self.client.dbconn.execute(
+                "SELECT name, quality, attack, defence, hp.id FROM fish_ownership INNER JOIN hp ON hp.id = fish_ownership.owner INNER JOIN fish ON fish.id=fish_ownership.fish WHERE hp.user_id=?",
+                (message.author.id,))
+            attack = 0
+            for row in cursor:
+                text += "{:>15} |    {:01.2f} | {:6.2f}\n".format(row["name"], row["quality"],
+                                                                  row["attack"] * row["quality"])
+                attack += row["attack"] * row["quality"]
+            user_id = row["id"]
+            text += "-" * 34 + "\n"
+            text += " " * 28 + "{:6.2f}".format(attack)
+            text += "```\n"
+            cursor = self.client.dbconn.execute("SELECT SUM(defence*quality) as d FROM fish_ownership INNER JOIN hp ON hp.id = fish_ownership.owner INNER JOIN fish ON fish.id=fish_ownership.fish WHERE hp.user_id=?",
+                                                (target_id,))
+            defence = cursor.fetchone()["d"]
+            text += ":shield: The target has **{:.2f} defence**.\n\n".format(defence)
+
+            text += "`(2d20 + attack) - (d20 + opponent's defence)`\n"
+            a = random.randint(1, 20)
+            b = random.randint(1, 20)
+            c = random.randint(1, 20)
+            text += "`({}+{} + {:.2f}) - ({} + {:.2f})`\n".format(a, b, attack, c, defence)
+            total = (a+b+attack) - (c+defence)
+            total = total if total>0 else 0
+            text += "`{:.2f}` **damage!**\n\n".format(total)
+
+            # Take away the damage
+            self.client.dbconn.execute("UPDATE hp SET total = total - ? WHERE user_id = ?", (total, target_id))
+            self.client.dbconn.commit()
+            cursor = self.client.dbconn.execute("SELECT total FROM hp WHERE user_id=?", (target_id,))
+            hp = cursor.fetchone()["total"]
+            text += ":heart: <@{}> has **{:.2f}HP** now.".format(target_id, hp)
+
+            # Decrease fish quality
+            self.client.dbconn.execute("UPDATE fish_ownership SET quality=quality*0.9 WHERE owner = ?", (user_id,))
+            self.client.dbconn.commit()
+
+            # Send the message
+            embed = Embed(description=text,
+                          colour=Colour.from_rgb(135, 169, 224))
+            await message.channel.send("<@{}> slaps <@{}> with their fish!".format(message.author.id, target_id), embed=embed)
+
+
 
     def ensure_fish(self, user_id):
         self.client.dbconn.execute("INSERT OR IGNORE INTO hp (user_id) VALUES (?)", (user_id,))
@@ -86,6 +151,7 @@ class Nodule(CoreNodule):
                         ),
                         colour=Colour.red())
                     await user.send(embed=embed)
+                    return
                 cursor = self.client.dbconn.execute("SELECT id FROM hp WHERE user_id=?", (payload.user_id,))
                 owner_id = cursor.fetchone()["id"]
                 self.client.dbconn.execute("INSERT INTO fish_ownership (owner, fish) VALUES (?, ?)", (owner_id, row["id"]))
@@ -99,17 +165,17 @@ class Nodule(CoreNodule):
                 await self.fish_arsenal(user, user.id)
 
     async def fish_arsenal(self, channel, user_id):
-        text = "{:>15} | {:>7} | {:>6} | {:>7}\n".format("Fish", "Quality", "Attack", "Defence")
-        text += "-"*44+"\n"
+        text = "{:>15} | {:>4} | {:>6} | {:>7}\n".format("Fish", "Qual", "Attack", "Defence")
+        text += "-"*41+"\n"
         cursor = self.client.dbconn.execute("SELECT name, quality, attack, defence FROM fish_ownership INNER JOIN hp ON hp.id = fish_ownership.owner INNER JOIN fish ON fish.id=fish_ownership.fish WHERE hp.user_id=?",
                                             (user_id,))
         attack = defence = 0
         for row in cursor:
-            text += "{:>15} |    {:01.2f} | {:6.2f} | {:7.2f}\n".format(row["name"], row["quality"], row["attack"]*row["quality"], row["defence"]*row["quality"])
+            text += "{:>15} | {:01.2f} | {:6.2f} | {:7.2f}\n".format(row["name"], row["quality"], row["attack"]*row["quality"], row["defence"]*row["quality"])
             attack += row["attack"]*row["quality"]
             defence += row["defence"]*row["quality"]
-        text += "-" * 44 + "\n"
-        text += " "*28 + "{:6.2f} | {:7.2f}".format(attack, defence)
+        text += "-" * 41 + "\n"
+        text += " "*25 + "{:6.2f} | {:7.2f}".format(attack, defence)
         embed = Embed(title="Your fish arsenal",
                       description="```{}```".format(text),
                       colour=Colour.from_rgb(135, 169, 224))

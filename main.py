@@ -1,8 +1,10 @@
 import discord
 import secrets
 import sqlite3
+from importlib import reload
 
-from nodules import modmessage, treasure, picocoin, games, fish
+from nodules import modmessage, treasure, picocoin, games, fish, sillyvoices
+_nodules = (modmessage, treasure, games, fish, sillyvoices)
 
 
 client = discord.Client()
@@ -12,11 +14,17 @@ client = discord.Client()
 async def on_ready():
     client.dbconn = sqlite3.connect('main.db')
     client.dbconn.row_factory = sqlite3.Row
-    client.nodules = [x.Nodule(client) for x in (modmessage, treasure, picocoin, games, fish)]
     client.picoguild = client.get_guild(807940337020567589)
+    client.nodules = [picocoin.Nodule(client)]
+    load()
 
     print('We have logged in as {0.user}'.format(client))
     await client.change_presence(activity=discord.Game(name='such pico, much con'))
+
+
+def load():
+    client.nodules = client.nodules[:1]
+    client.nodules.extend([x.Nodule(client) for x in _nodules])
 
 
 @client.event
@@ -26,6 +34,13 @@ async def on_message(message):
 
     if message.content.startswith('!nping'):
         await message.channel.send('npong!')
+
+    if message.content.startswith('!reload') and message.author.guild_permissions.administrator:
+        print("Reloading Nodules")
+        for n in _nodules:
+            reload(n)
+        load()
+        await message.channel.send("Nodules reloaded")
 
     for nodule in client.nodules:
         await nodule.on_message(message)

@@ -177,7 +177,7 @@ class Nodule(CoreNodule):
         if not message:
             cursor = self.client.dbconn.execute("SELECT total FROM donations_info")
             row = cursor.fetchone()
-            if row is not None and float(row["total"]) == total:
+            if row is not None and row["total"] is not None and float(row["total"]) == total:
                 return
             self.client.dbconn.execute("UPDATE donations_info SET total=(?) WHERE id=1", (total,))
             self.client.dbconn.commit()

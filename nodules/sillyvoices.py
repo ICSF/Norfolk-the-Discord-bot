@@ -55,7 +55,7 @@ class Nodule(CoreNodule):
                 embed = Embed(
                     description="**Syntax error.** The syntax is `!request <bounty> <description>`",
                     colour=Colour.red())
-                embed.set_footer(text="For example: !voice 3 I want someone to say 'I can do that, Dave'  in HAL 9000's voice.")
+                embed.set_footer(text="For example: !voice 3 I want someone to say 'I can do that, Dave' in HAL 9000's voice.")
                 await message.channel.send(embed=embed)
                 return
 

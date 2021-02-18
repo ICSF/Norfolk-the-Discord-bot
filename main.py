@@ -3,8 +3,8 @@ import secrets
 import sqlite3
 from importlib import reload
 
-from nodules import modmessage, treasure, picocoin, games, fish, sillyvoices
-_nodules = (modmessage, treasure, games, fish, sillyvoices)
+from nodules import modmessage, treasure, picocoin, games, fish, sillyvoices, talks
+_nodules = (modmessage, treasure, games, fish, sillyvoices, talks)
 
 
 client = discord.Client()
@@ -40,7 +40,7 @@ async def on_message(message):
         for n in _nodules:
             reload(n)
         load()
-        await message.channel.send("Nodules reloaded")
+        await message.channel.send(":recycle: Nodules reloaded")
 
     for nodule in client.nodules:
         await nodule.on_message(message)

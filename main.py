@@ -48,6 +48,9 @@ async def on_message(message):
 
 @client.event
 async def on_raw_reaction_add(payload):
+    if payload.user_id == client.user.id:
+        return
+
     for nodule in client.nodules:
         await nodule.on_raw_reaction_add(payload)
 

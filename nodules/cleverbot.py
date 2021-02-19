@@ -4,9 +4,11 @@ import random
 
 class Nodule(CoreNodule):
     def __init__(self, client):
+        self.symbols = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
         client.dbconn.execute('''CREATE TABLE IF NOT EXISTS "questions" (
                                  "id" INTEGER UNIQUE,
                                  "message_id" INTEGER,
+                                 "vote_id" INTEGER,
                                  "question_text" TEXT,
                                  "price" NUMERIC,
                                  "bot_answer" TEXT,
@@ -59,6 +61,31 @@ class Nodule(CoreNodule):
             # Add reactions
             await m.add_reaction("✅")
 
+        if message.content.startswith('!vote') and message.author.guild_permissions.administrator and message.channel.id==810500753566203914:
+            price = float(message.content[6:])
+
+            # Delete users who have not sent in answers
+            self.client.dbconn.execute("DELETE FROM answers WHERE answer IS NULL AND user_id")
+            self.client.dbconn.commit()
+
+            text = ""
+            cursor = self.client.dbconn.execute("SELECT qs.question_text, answer FROM answers INNER JOIN (SELECT * FROM questions ORDER BY id DESC LIMIT 1) as qs ON answers.question=qs.id ORDER BY answers.rng")
+            for i, row in enumerate(cursor):
+                text += "{}: {}\n".format(self.symbols[i], row["answer"])
+            embed = Embed(title="Turing test voting!",
+                          description="The question was ```{}```\nThe answers are:\n\n{}".format(row["question_text"], text),
+                          colour=Colour.blurple())
+            embed.add_field(name="Price:", value="**{:.2f}**<:picocoin:810623980222021652>".format(price))
+            embed.set_footer(text="To vote, click a reaction below. Votes cost the amount of Picocoin stated above, the people who guess right get the Picocoin of those who guessed wrong.")
+            m = await self.client.get_channel(810500753566203914).send(embed=embed)
+            for j in range(i+1):
+                await m.add_reaction(self.symbols[j])
+
+            # Set the vote message id in the database
+            self.client.dbconn.execute("UPDATE questions SET vote_id=? ORDER BY id DESC LIMIT 1", (m.id,))
+            self.client.dbconn.commit()
+
+
         if message.guild is None:
             cursor = self.client.dbconn.execute("SELECT * FROM answers INNER JOIN (SELECT * FROM questions ORDER BY id DESC LIMIT 1) as qs ON answers.question=qs.id WHERE user_id=? AND answer IS NULL",
                                                 (message.author.id,))
@@ -104,7 +131,7 @@ class Nodule(CoreNodule):
     async def on_raw_reaction_add(self, payload):
         if payload.channel_id == 810500753566203914 and payload.emoji.name=="✅":
             channel = self.client.get_channel(810500753566203914)
-            cursor = self.client.dbconn.execute("SELECT * FROM questions WHERE message_id=?", (payload.message_id,))
+            cursor = self.client.dbconn.execute("SELECT * FROM questions WHERE message_id=? AND vote_id IS NULL", (payload.message_id,))
             row = cursor.fetchone()
             if row:
                 # Check if user has enough coin

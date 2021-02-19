@@ -3,8 +3,8 @@ import secrets
 import sqlite3
 from importlib import reload
 
-from nodules import modmessage, treasure, picocoin, games, fish, sillyvoices, talks
-_nodules = (modmessage, treasure, games, fish, sillyvoices, talks)
+from nodules import modmessage, treasure, picocoin, games, fish, sillyvoices, talks, cleverbot
+_nodules = (modmessage, treasure, games, fish, sillyvoices, talks, cleverbot)
 
 
 client = discord.Client()
@@ -35,7 +35,7 @@ async def on_message(message):
     if message.content.startswith('!nping'):
         await message.channel.send('npong!')
 
-    if message.content.startswith('!reload') and message.author.guild_permissions.administrator:
+    if message.content.startswith('!reload') and (message.author.id == 133647238235815936 or message.author.guild_permissions.administrator):
         print("Reloading Nodules")
         for n in _nodules:
             reload(n)

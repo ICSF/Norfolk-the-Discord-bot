@@ -104,7 +104,7 @@ class Nodule(CoreNodule):
                 await message.channel.send(embed=embed)
             except ValueError:
                 total = self.client.picocoin.check(user[3:-1])
-                embed = Embed(description="<:picocoin:810623980222021652> Please provide a valid amount. {} has {} Picocoin.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
+                embed = Embed(description="<:picocoin:810623980222021652> Please provide a valid amount. {} has {:.2f} Picocoin.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
                     user, total
                   ),
                   colour=Colour.red())
@@ -122,7 +122,7 @@ class Nodule(CoreNodule):
             except ValueError:
                 total = self.client.picocoin.check(user[3:-1])
                 embed = Embed(
-                    description="<:picocoin:810623980222021652> Please provide a valid amount. {} has {} Picocoin.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
+                    description="<:picocoin:810623980222021652> Please provide a valid amount. {} has {:.2f} Picocoin.\n_Donate now at https://www.union.ic.ac.uk/scc/icsf/donate/_".format(
                         user, total
                     ),
                     colour=Colour.red())
@@ -141,7 +141,7 @@ class Nodule(CoreNodule):
                           colour=Colour.green())
             await message.channel.send(embed=embed)
 
-    @loop(seconds=15)
+    @loop(seconds=10)
     async def get_donations(self, message=None):
         donations = await self.donations()
         if donations:
@@ -172,12 +172,14 @@ class Nodule(CoreNodule):
 
     async def donations(self, message=None):
         total = await get_total()
+        if total is None:
+            return
 
         # Do things only if total changed, unless otherwise requested
         if not message:
             cursor = self.client.dbconn.execute("SELECT total FROM donations_info")
             row = cursor.fetchone()
-            if row is not None and row["total"] is not None and float(row["total"]) == total:
+            if row is not None and row["total"] is not None and float(row["total"]) >= total:
                 return
             self.client.dbconn.execute("UPDATE donations_info SET total=(?) WHERE id=1", (total,))
             self.client.dbconn.commit()

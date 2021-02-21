@@ -47,7 +47,7 @@ class Nodule(CoreNodule):
             embed.add_field(name="Price:", value="**{:.2f}**<:picocoin:810623980222021652>".format(price))
             embed.add_field(name="Answers:", value="1/1")
             embed.set_footer(text="Your entry payment goes in a pool. The pool is then distrbuted according to the number of votes your answer gets.")
-            m = await self.client.get_channel(810500753566203914).send(embed=embed)
+            m = await self.client.get_channel(810500753566203914).send("<@&812481099225104434>", embed=embed)
 
             # Insert into the database
             self.client.dbconn.execute("INSERT INTO questions (message_id, question_text, price, bot_answer, rng) VALUES (?, ?, ?, ?, ?)",
@@ -77,13 +77,75 @@ class Nodule(CoreNodule):
                           colour=Colour.blurple())
             embed.add_field(name="Price:", value="**{:.2f}**<:picocoin:810623980222021652>".format(price))
             embed.set_footer(text="To vote, click a reaction below. Votes cost the amount of Picocoin stated above, the people who guess right get the Picocoin of those who guessed wrong.")
-            m = await self.client.get_channel(810500753566203914).send(embed=embed)
+            m = await self.client.get_channel(810500753566203914).send("<@&812481099225104434>", embed=embed)
             for j in range(i+1):
                 await m.add_reaction(self.symbols[j])
 
             # Set the vote message id in the database
             self.client.dbconn.execute("UPDATE questions SET vote_id=? ORDER BY id DESC LIMIT 1", (m.id,))
             self.client.dbconn.commit()
+
+        if message.content.startswith('!turing') and message.author.guild_permissions.administrator and message.channel.id == 810500753566203914:
+            # Get the message that was written by the AI
+            cursor = self.client.dbconn.execute("SELECT * FROM questions ORDER BY id DESC LIMIT 1")
+            q_row = cursor.fetchone()
+            await message.channel.send("The message written by the AI was: `{}.`\n\n Here are the results:".format(q_row["bot_answer"]))
+
+            # Get the voting message
+            q_message = await message.channel.fetch_message(q_row["vote_id"])
+            embed = q_message.embeds[0]
+
+            # Get the total number of responses
+            cursor = self.client.dbconn.execute("SELECT COUNT(qs.id) AS N FROM answers INNER JOIN (SELECT * FROM questions ORDER BY id DESC LIMIT 1) as qs ON answers.question=qs.id")
+            row = cursor.fetchone()
+            N = row["N"]
+            # Total number of reactions
+            Nvotes = sum([reaction.count-1 for reaction in q_message.reactions])
+
+            # Get the particular responses, announce, and distribute coin
+            correct = ""
+            correct_votes = 0
+            cursor = self.client.dbconn.execute("SELECT qs.question_text, answer, answers.user_id FROM answers INNER JOIN (SELECT * FROM questions ORDER BY id DESC LIMIT 1) as qs ON answers.question=qs.id ORDER BY answers.rng")
+            for i, row in enumerate(cursor):
+                reaction = [reaction for reaction in q_message.reactions if (str(reaction.emoji) in self.symbols and int(str(reaction.emoji)[0])==i+1)][0]
+                prize = ((reaction.count-1)/Nvotes)*N*q_row["price"]
+                if row["user_id"]:
+                    self.client.picocoin.give(row["user_id"], prize)
+                    await message.channel.send("<@{}>: `{}` _({}/{} votes, +{:.2f} Picocoin)_".format(row["user_id"], row["answer"], reaction.count-1, Nvotes, prize))
+                else:
+                    await message.channel.send("**BOT**: `{}` _({}/{} votes)_".format(row["answer"], reaction.count-1, Nvotes))
+                    correct = reaction.emoji
+                    correct_votes = reaction.count-1
+
+            # Now go through all the reactions and dish out coin
+            price = float(embed.fields[0].value.split("<")[0][2:-2])
+            losers = []
+            for reaction in q_message.reactions:
+                if reaction.emoji == correct:
+                    continue
+                async for user in reaction.users():
+                    if user.id == 810233904506077205:
+                        continue
+                    try:
+                        self.client.picocoin.take(user.id, price)
+                        losers.append(user.id)
+                    except ValueError:
+                        await user.send("You didn't have enough Picocoin for your vote to be counted at this time.")
+            await message.channel.send("These people chose wrong and lose {:.2f} Picocoin:\n<@{}>".format(price, ">, <@".join(str(x) for x in losers)))
+
+            if correct_votes:
+                prize = len(losers) * price / correct_votes
+                winners = []
+                for reaction in q_message.reactions:
+                    if reaction.emoji == correct:
+                        async for user in reaction.users():
+                            if user.id == 810233904506077205:
+                                continue
+                            self.client.picocoin.give(user.id, prize)
+                            winners.append(user.id)
+                await message.channel.send("These people chose well and get {:.2f} Picocoin:\n<@{}>".format(prize, ">, <@".join(str(x) for x in winners)))
+
+
 
 
         if message.guild is None:

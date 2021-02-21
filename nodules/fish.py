@@ -66,7 +66,9 @@ class Nodule(CoreNodule):
             self.ensure_fish(message.author.id)
             try:
                 _, user, = message.content.split(" ")
-                target_id = user[3:-1]
+                target_id = user[2:-1]
+                if target_id[0] == "!":
+                    target_id = target_id[1:]
             except ValueError:
                 embed = Embed(title="Incorrect argument",
                               description="The syntax is `!slap <user mention>`\nFor example: !slap <@!810233904506077205>",
@@ -79,7 +81,7 @@ class Nodule(CoreNodule):
             text = "```{:>15} | {:>7} | {:>6}\n".format("Fish", "Quality", "Attack", "Defence")
             text += "-" * 34 + "\n"
             cursor = self.client.dbconn.execute(
-                "SELECT name, quality, attack, defence, hp.id FROM fish_ownership INNER JOIN hp ON hp.id = fish_ownership.owner INNER JOIN fish ON fish.id=fish_ownership.fish WHERE hp.user_id=?",
+                "SELECT name, quality, attack, defence, hp.id FROM fish_ownership INNER JOIN hp ON hp.id = fish_ownership.owner INNER JOIN fish ON fish.id=fish_ownership.fish WHERE hp.user_id=? ORDER BY quality DESC",
                 (message.author.id,))
             attack = 0
             for row in cursor:
@@ -89,6 +91,7 @@ class Nodule(CoreNodule):
             user_id = row["id"]
             text += "-" * 34 + "\n"
             text += " " * 28 + "{:6.2f}".format(attack)
+            text = text[:1800]
             text += "```\n"
             cursor = self.client.dbconn.execute("SELECT SUM(defence*quality) as d FROM fish_ownership INNER JOIN hp ON hp.id = fish_ownership.owner INNER JOIN fish ON fish.id=fish_ownership.fish WHERE hp.user_id=?",
                                                 (target_id,))
@@ -120,7 +123,14 @@ class Nodule(CoreNodule):
                           colour=Colour.from_rgb(135, 169, 224))
             await message.channel.send("<@{}> slaps <@{}> with their fish!".format(message.author.id, target_id), embed=embed)
 
-
+        if message.content.startswith('!boardfish'):
+            cursor = self.client.dbconn.execute("SELECT * FROM hp ORDER BY total ASC LIMIT 25")
+            text = ""
+            for i, row in enumerate(cursor):
+                text += "{}. <@{}> (**{:.2f}HP**)\n".format(i+1, row["user_id"], row["total"])
+            embed = Embed(title="Inverse fish leaderboard", description=text,
+                          colour=Colour.from_rgb(135, 169, 224))
+            await message.channel.send(embed=embed)
 
     def ensure_fish(self, user_id):
         self.client.dbconn.execute("INSERT OR IGNORE INTO hp (user_id) VALUES (?)", (user_id,))
@@ -141,6 +151,7 @@ class Nodule(CoreNodule):
             user = self.client.get_user(payload.user_id)
             row = cursor.fetchone()
             if row:
+                self.ensure_fish(payload.user_id)
                 try:
                     total = self.client.picocoin.take(payload.user_id, row["price"])
                 except ValueError:
@@ -167,7 +178,7 @@ class Nodule(CoreNodule):
     async def fish_arsenal(self, channel, user_id):
         text = "{:>15} | {:>4} | {:>6} | {:>7}\n".format("Fish", "Qual", "Attack", "Defence")
         text += "-"*41+"\n"
-        cursor = self.client.dbconn.execute("SELECT name, quality, attack, defence FROM fish_ownership INNER JOIN hp ON hp.id = fish_ownership.owner INNER JOIN fish ON fish.id=fish_ownership.fish WHERE hp.user_id=?",
+        cursor = self.client.dbconn.execute("SELECT name, quality, attack, defence, hp.total FROM fish_ownership INNER JOIN hp ON hp.id = fish_ownership.owner INNER JOIN fish ON fish.id=fish_ownership.fish WHERE hp.user_id=? ORDER BY quality DESC",
                                             (user_id,))
         attack = defence = 0
         for row in cursor:
@@ -177,6 +188,7 @@ class Nodule(CoreNodule):
         text += "-" * 41 + "\n"
         text += " "*25 + "{:6.2f} | {:7.2f}".format(attack, defence)
         embed = Embed(title="Your fish arsenal",
-                      description="```{}```".format(text),
+                      description="```{}```".format(text[:2040]),
                       colour=Colour.from_rgb(135, 169, 224))
+        embed.set_footer(text="You have {:.2f}HP. Attack: {:.2f}. Defence: {:.2f}".format(row["total"], attack, defence))
         await channel.send(embed=embed)

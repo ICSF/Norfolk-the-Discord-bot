@@ -13,7 +13,7 @@ class Nodule(CoreNodule):
         client.dbconn.execute('''CREATE TABLE IF NOT EXISTS "treasure" (
                                  "id" INTEGER UNIQUE,
                                  "name" TEXT,
-                                 "value" INTEGER,
+                                 "value" NUMERIC,
                                  PRIMARY KEY("id" AUTOINCREMENT)
                                  );''')
         client.dbconn.execute('''CREATE TABLE IF NOT EXISTS "teams" (
@@ -44,44 +44,42 @@ class Nodule(CoreNodule):
                 row = cursor.fetchone()
                 name = row["name"]
                 team_id = row["id"]
-                color = Colour.from_rgb(*tuple(int(row["color"][i+1:i+3], 16) for i in (0, 2, 4)))
-                embed = Embed(title="The Scavenger Hunt", color=color)
+                color = Colour.from_rgb(*tuple(int(row["color"][i + 1:i + 3], 16) for i in (0, 2, 4)))
 
                 # List the things that have been collected
-                text = ""
+                text = "**You've collected:**\n"
                 cursor = self.client.dbconn.execute(
                     "SELECT treasure.id, treasure.name, treasure.value FROM collected INNER JOIN treasure ON treasure.id=collected.item WHERE collected.team = ?",
                     (team_id,))
                 for row in cursor:
-                    text += "{:2d}. ~~**{}**~~ ({} points)\n".format(row["id"], row["name"], row["value"])
-                if len(text):
-                    embed.add_field(name="The {} Team has collected:".format(name), value=text, inline=False)
+                    text += "{:2d}. {} ({})\n".format(row["id"], row["name"], row["value"])
 
                 # List things yet to collect
-                text = ""
+                text += "\n**You can still collect:**\n"
                 cursor = self.client.dbconn.execute(
                     "SELECT treasure.id, treasure.name, treasure.value FROM treasure LEFT JOIN (SELECT * FROM collected WHERE collected.team=?) AS coll ON coll.item=treasure.id WHERE coll.id IS NULL",
                     (team_id,))
                 for row in cursor:
-                    text += "{:2d}. **{}** ({} points)\n".format(row["id"], row["name"], row["value"])
-                if len(text):
-                    embed.add_field(name="You can still collect:", value=text, inline=False)
+                    text += "{:2d}. {} ({})\n".format(row["id"], row["name"], row["value"])
+                print(len(text))
+                embed = Embed(title="The Scavenger Hunt", description=text, color=color)
 
                 # Point totals
                 cursor = self.client.dbconn.execute(
                     "SELECT teams.name, sum(treasure.value) as points FROM collected INNER JOIN treasure ON collected.item = treasure.id INNER JOIN teams ON collected.team = teams.id GROUP BY collected.team")
                 for row in cursor:
-                    embed.add_field(name=row["name"], value=row["points"])
+                    embed.add_field(name=row["name"], value="{:.2f}".format(row["points"]))
                 await message.channel.send(embed=embed)
             else:
                 text = ""
                 cursor = self.client.dbconn.execute("SELECT id, name, value FROM treasure")
                 for row in cursor:
-                    text += "{:2d}. **{}** ({} points)\n".format(row["id"], row["name"], row["value"])
+                    text += "{:2d}. **{}** ({})\n".format(row["id"], row["name"], row["value"])
+                print(len(text))
                 embed = Embed(title="The Scavenger Hunt", description=text, colour=Colour.from_rgb(194, 124, 14))
                 cursor = self.client.dbconn.execute("SELECT teams.name, sum(treasure.value) as points FROM collected INNER JOIN treasure ON collected.item = treasure.id INNER JOIN teams ON collected.team = teams.id GROUP BY collected.team")
                 for row in cursor:
-                    embed.add_field(name=row["name"], value=row["points"])
+                    embed.add_field(name=row["name"], value="{:.2f}".format(row["points"]))
                 await message.channel.send(embed=embed)
 
 
@@ -127,7 +125,7 @@ class Nodule(CoreNodule):
                 total = row["points"]
 
                 # Send the embed
-                embed = Embed(description="You have collected **{}** ({} points). Your total is now {} points!".format(
+                embed = Embed(description="You have collected **{}** ({} points). Your total is now {:.2f} points!".format(
                     item_name, item_value, total
                 ), color=color)
                 await message.channel.send(embed=embed)

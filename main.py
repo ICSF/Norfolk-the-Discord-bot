@@ -153,7 +153,7 @@ values = {
     "k": -3.14, "K": -3.64, "l": -10, "L": -15, "m": 5, "M": 5.5, "n": 2.05, "N": -2.55, "o": 0, "O": 0,
     "p": 2.34, "P": 2.84, "q": 7.25, "Q": 7.75, "r": -3, "R": -3.5, "s": -5, "S": -5.5, "t": 5.17, "T": 5.67,
     "u": 10, "U": 10.5, "v": 5, "V": 5.5, "w": 10, "W": 10.5, "x": 10, "X": 10.5, "y": 5, "Y": -5.5, "z": 1, "Z": 1.5,
-    ",": 1.23, ".": -5, ":": 3, ";": 30, "?": 5.6, "!": -10, "&": 8, "%": 100, "*": 6.54, "<": -1, ">": 1,
+    ",": 1.23, ".": -5, ":": 3, ";": 30, "?": 5.6, "!": -10, "&": 8, "%": 100, "*": 6.54, "<": -1, ">": 1, "ə": 42,
 }
 
 
@@ -254,7 +254,7 @@ async def on_message(message):
     if message.content.startswith('!april'):
         # TODO: remove points on check
 
-        cursor = client.dbconn.execute("SELECT total FROM users WHERE user_id=133647238235815936")
+        cursor = client.dbconn.execute("SELECT total FROM users WHERE user_id=?", (message.author.id,))
         row = cursor.fetchone()
         text = "You have **{:.2f}** points, {}.".format(row["total"], message.author.mention)
 
@@ -263,7 +263,13 @@ async def on_message(message):
         embed.set_footer(text="This check has a cost.")
         await message.channel.send(embed=embed)
 
+    if message.content.startswith('!user_april') and message.author.guild_permissions.administrator:
+        cursor = client.dbconn.execute("SELECT total FROM users WHERE user_id=?", (message.content[12:],))
+        row = cursor.fetchone()
+        await message.channel.send(row["total"])
+
     if not message.content.startswith('!') and message.channel.id == 826925077580742666:
+        # Calculate the naive point total
         spaces = message.content.count(" ")
         score = sum([values[x] for x in message.content if x in values]) / (spaces if spaces else 0.5)
 

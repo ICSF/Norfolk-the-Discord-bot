@@ -309,6 +309,8 @@ async def on_message(message):
                 client.dbconn.execute("UPDATE words SET quality = quality*0.9 WHERE id = ?", (row["id"],))
 
         client.dbconn.execute("UPDATE users SET total = total + ? WHERE user_id = ?", (score, message.author.id))
+        for user in message.mentions:
+            client.dbconn.execute("UPDATE users SET total = total + ? WHERE user_id = ?", (score, user.id))
         client.dbconn.commit()
 
         # if message.channel.id == 826925077580742666:

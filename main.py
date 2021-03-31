@@ -4,6 +4,7 @@ from asyncio import sleep
 from aiohttp import ClientSession, BasicAuth
 import sqlite3
 from time import time
+from discord.ext.tasks import loop
 
 
 class Conversation:
@@ -181,6 +182,11 @@ async def april_board(client, channel):
     await channel.send(embed=embed)
 
 
+@loop(minutes=5)
+async def auto_board():
+    await april_board(client, client.get_channel(826925033304752138))
+
+
 @client.event
 async def on_ready():
     global icsf
@@ -205,7 +211,8 @@ async def on_ready():
 
     print('We have logged in as {0.user}'.format(client))
     icsf = client.get_guild(430437751603724319)
-    await client.change_presence(activity=discord.Game(name='just wanted to say hi'))
+    await client.change_presence(activity=discord.Game(name='the fourth month\'s fool'))
+    auto_board.start()
 
 
 @client.event

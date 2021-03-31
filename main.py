@@ -2,6 +2,7 @@ import discord
 import secrets
 from asyncio import sleep
 from aiohttp import ClientSession, BasicAuth
+import sqlite3
 
 
 class Conversation:
@@ -143,10 +144,57 @@ cons = []
 client = discord.Client()
 icsf = None
 
+# Some April constants
+values = {
+    "0": 13, "1": 3, "2": 6, "3": 8, "4": 7, "5": 10, "6": 10,
+    "7": 8, "8": 9, "9": 4
+}
+
+
+async def april_board(client, channel):
+    cursor = client.dbconn.execute("SELECT * FROM users ORDER BY total DESC LIMIT 9")
+    text = ""
+
+    for i, row in enumerate(cursor):
+        text += "{}. {} (**{:.2f}points**)\n".format(i + 1, row["mention"], row["total"])
+
+    text += "...\n"
+    cursor = client.dbconn.execute("SELECT count(id) AS i FROM users")
+    row = cursor.fetchone()
+    i = row["i"]-9
+
+    cursor = client.dbconn.execute("SELECT * FROM (SELECT * FROM users ORDER BY total ASC LIMIT 9) ORDER BY total DESC")
+    for row in cursor:
+        text += "{}. {} (**{:.2f}points**)\n".format(i + 1, row["mention"], row["total"])
+        i += 1
+
+    embed = discord.Embed(title="The AprilBoard", description=text,
+                          colour=discord.Colour.from_rgb(135, 169, 224))
+    embed.set_thumbnail(url="https://i.imgur.com/mJ7zu6k.png")
+    await channel.send(embed=embed)
+
 
 @client.event
 async def on_ready():
     global icsf
+
+    client.dbconn = sqlite3.connect('main.db')
+    client.dbconn.row_factory = sqlite3.Row
+    client.dbconn.execute('''CREATE TABLE IF NOT EXISTS "users" (
+                             "id" INTEGER UNIQUE,
+                             "user_id" INTEGER UNIQUE,
+                             "mention" TEXT,
+                             "username" TEXT,
+                             "total" NUMERIC DEFAULT 0,
+                             PRIMARY KEY("id" AUTOINCREMENT)
+                             );''')
+    client.dbconn.execute('''CREATE TABLE IF NOT EXISTS "words" (
+                             "id" INTEGER UNIQUE,
+                             "word" TEXT,
+                             "quality" NUMERIC,
+                             PRIMARY KEY("id" AUTOINCREMENT)
+                             );''')
+
     print('We have logged in as {0.user}'.format(client))
     icsf = client.get_guild(430437751603724319)
     await client.change_presence(activity=discord.Game(name='just wanted to say hi'))
@@ -183,6 +231,21 @@ async def on_message(message):
     if message.content.startswith('!playing') and message.author.guild_permissions.administrator:
         await client.change_presence(activity=discord.Game(name=message.content[8:]))
 
+    # April Fools functionality
+    if message.content.startswith('!april_init') and message.author.guild_permissions.administrator:
+        await message.channel.send("Initialising Operation April...")
+        async for member in icsf.fetch_members():
+            string_id = str(member.id)
+            score = sum([values[x] for x in string_id])
+            client.dbconn.execute("INSERT OR IGNORE INTO users (user_id, total, mention, username) VALUES (?, ?, ?, ?)",
+                                  (member.id, score, member.mention, member.name))
+        client.dbconn.commit()
+        await message.channel.send("Much init, such done.")
+
+    if message.content.startswith('!aprilboard') and message.author.guild_permissions.administrator:
+        await april_board(client, message.channel)
+
+    # Conversations
     for con in [x for x in cons if message.channel == x.channel]:
         await con.receive(message)
 

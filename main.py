@@ -3,6 +3,7 @@ import secrets
 from asyncio import sleep
 from aiohttp import ClientSession, BasicAuth
 import sqlite3
+from time import time
 
 
 class Conversation:
@@ -198,6 +199,7 @@ async def on_ready():
                              "id" INTEGER UNIQUE,
                              "word" TEXT,
                              "quality" NUMERIC,
+                             "prize" NUMERIC,
                              PRIMARY KEY("id" AUTOINCREMENT)
                              );''')
 
@@ -252,7 +254,8 @@ async def on_message(message):
         await april_board(client, message.channel)
 
     if message.content.startswith('!april'):
-        # TODO: remove points on check
+        client.dbconn.execute("UPDATE users SET total = total - ? WHERE user_id = ?", (time()//60%60, message.author.id))
+        client.dbconn.commit()
 
         cursor = client.dbconn.execute("SELECT total FROM users WHERE user_id=?", (message.author.id,))
         row = cursor.fetchone()
@@ -268,16 +271,47 @@ async def on_message(message):
         row = cursor.fetchone()
         await message.channel.send(row["total"])
 
-    if not message.content.startswith('!') and message.channel.id == 826925077580742666:
+    if message.content.startswith('!add_word') and message.author.guild_permissions.administrator:
+        try:
+            _, word, quality, prize = message.content.split(" ")
+            quality = float(quality)
+            prize = float(prize)
+        except ValueError:
+            embed = discord.Embed(title="Incorrect argument",
+                                  description="The syntax is `!add_word <word> <quality> <prize>`",
+                                  colour=discord.Colour.red())
+            await message.channel.send(embed=embed)
+            return
+        client.dbconn.execute("INSERT INTO words (word, quality, prize) VALUES (?, ?, ?)",
+                              (word, quality, prize))
+        client.dbconn.commit()
+
+    if not message.content.startswith('!'):
         # Calculate the naive point total
         spaces = message.content.count(" ")
         score = sum([values[x] for x in message.content if x in values]) / (spaces if spaces else 0.5)
 
+        # Find special words
+        cursor = client.dbconn.execute("SELECT id, word, quality*prize AS payout FROM words WHERE quality>0.1")
+        for row in cursor:
+            if row["word"] in message.content:
+                embed = discord.Embed(description="You have found a **secret word**. For that, you get **{:.2f}points**".format(row["payout"]),
+                                      colour=discord.Colour.from_rgb(135, 169, 224))
+                await message.channel.send(embed=embed)
+                score += row["payout"]
+                client.dbconn.execute("UPDATE words SET quality = quality*0.9 WHERE id = ?", (row["id"],))
+
         client.dbconn.execute("UPDATE users SET total = total + ? WHERE user_id = ?", (score, message.author.id))
         client.dbconn.commit()
 
-        if message.channel.id == 826925077580742666:
-            await message.channel.send(score)
+        # if message.channel.id == 826925077580742666:
+        #     await message.channel.send(score)
+
+    if message.content.startswith('!compute') and message.author.guild_permissions.administrator:
+        content = message.content[9:]
+        spaces = content.count(" ")
+        score = sum([values[x] for x in content if x in values]) / (spaces if spaces else 0.5)
+        await message.channel.send(score)
 
     # Conversations
     for con in [x for x in cons if message.channel == x.channel]:

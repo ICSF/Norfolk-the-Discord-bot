@@ -147,7 +147,13 @@ icsf = None
 # Some April constants
 values = {
     "0": 13, "1": 3, "2": 6, "3": 8, "4": 7, "5": 10, "6": 10,
-    "7": 8, "8": 9, "9": 4
+    "7": 8, "8": 9, "9": 4,
+    "a": 1, "A": 1.5, "b": 0.5, "B": 1, "c": 4, "C": 4.5, "d": -4, "D": -4.5, "e": 6.9, "E": 7.4,
+    "f": 0, "F": 15, "g": 9, "G": 9.5, "h": 6.63, "H": 7.13, "i": -1, "I": -1.5, "j": 3, "J": 3.5,
+    "k": -3.14, "K": -3.64, "l": -10, "L": -15, "m": 5, "M": 5.5, "n": 2.05, "N": -2.55, "o": 0, "O": 0,
+    "p": 2.34, "P": 2.84, "q": 7.25, "Q": 7.75, "r": -3, "R": -3.5, "s": -5, "S": -5.5, "t": 5.17, "T": 5.67,
+    "u": 10, "U": 10.5, "v": 5, "V": 5.5, "w": 10, "W": 10.5, "x": 10, "X": 10.5, "y": 5, "Y": -5.5, "z": 1, "Z": 1.5,
+    ",": 1.23, ".": -5, ":": 3, ";": 30, "?": 5.6, "!": -10, "&": 8, "%": 100, "*": 6.54, "<": -1, ">": 1,
 }
 
 
@@ -244,6 +250,28 @@ async def on_message(message):
 
     if message.content.startswith('!aprilboard') and message.author.guild_permissions.administrator:
         await april_board(client, message.channel)
+
+    if message.content.startswith('!april'):
+        # TODO: remove points on check
+
+        cursor = client.dbconn.execute("SELECT total FROM users WHERE user_id=133647238235815936")
+        row = cursor.fetchone()
+        text = "You have **{:.2f}** points, {}.".format(row["total"], message.author.mention)
+
+        embed = discord.Embed(description=text,
+                              colour=discord.Colour.from_rgb(135, 169, 224))
+        embed.set_footer(text="This check has a cost.")
+        await message.channel.send(embed=embed)
+
+    if not message.content.startswith('!') and message.channel.id == 826925077580742666:
+        spaces = message.content.count(" ")
+        score = sum([values[x] for x in message.content if x in values]) / (spaces if spaces else 0.5)
+
+        client.dbconn.execute("UPDATE users SET total = total + ? WHERE user_id = ?", (score, message.author.id))
+        client.dbconn.commit()
+
+        if message.channel.id == 826925077580742666:
+            await message.channel.send(score)
 
     # Conversations
     for con in [x for x in cons if message.channel == x.channel]:

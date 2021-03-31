@@ -138,6 +138,34 @@ class MembershipCon(Conversation):
     }
 
 
+class VotingCon(Conversation):
+    def __init__(self, dm_channel, vote):
+        self.vote = vote
+        self.steps = {
+            "init": {
+                "text": ["**" + "-" * 60 + "**\n\n"
+                         "Hi! This is a vote on:```{}```Please type out your vote below and send it. It will be passed to "
+                         "the Returning Officer.\n\nYour message can include other information, like abstaining, not voting"
+                         ", or your proxy votes.".format(self.vote)],
+                "interaction": {
+                    "type": "input",
+                    "store_as": "text",
+                    "next": self.process_vote
+                },
+            },
+        }
+        super().__init__(dm_channel)
+
+    async def finish(self, *args):
+        await self.channel.send("Thanks for your vote!\n\n**"+"-"*60+"**")
+        return None
+
+    async def process_vote(self, *args):
+        text = "Vote from {} on '{}': ```{}```".format(self.channel.recipient.mention, self.vote, self.text)
+        await client.get_user(378887560119975939).send(text)
+        return self.finish
+
+
 cons = []
 
 client = discord.Client()
@@ -149,7 +177,7 @@ async def on_ready():
     global icsf
     print('We have logged in as {0.user}'.format(client))
     icsf = client.get_guild(430437751603724319)
-    await client.change_presence(activity=discord.Game(name='just wanted to say hi'))
+    await client.change_presence(activity=discord.Game(name='sweet sweet democracy'))
 
 
 @client.event
@@ -183,12 +211,23 @@ async def on_message(message):
     if message.content.startswith('!playing') and message.author.guild_permissions.administrator:
         await client.change_presence(activity=discord.Game(name=message.content[8:]))
 
+    if message.content.startswith('!agm_vote') and message.author.guild_permissions.administrator:
+        embed = discord.Embed(
+            title="This is a vote on:",
+            description=message.content[10:],
+            colour=discord.Colour.blue())
+        m = await message.channel.send("Click the 🗳️ reaction below to vote, and check your direct message for a message from <@!767851328092766268>.", embed=embed)
+        await m.add_reaction("🗳️")
+
     for con in [x for x in cons if message.channel == x.channel]:
         await con.receive(message)
 
 
 @client.event
 async def on_raw_reaction_add(payload):
+    if payload.user_id == client.user.id:
+        return
+
     if payload.message_id == 774771312983408681 and payload.event_type == "REACTION_ADD":
         user = client.get_user(payload.user_id)
         if user.dm_channel is None:
@@ -210,6 +249,17 @@ async def on_raw_reaction_add(payload):
         await sleep(2)
         await user.send("Now click this link to get back to role selection: "
                         "https://discord.com/channels/430437751603724319/767849852863643659/774760325513216040")
+
+    if payload.channel_id == 824992986009829396 and payload.event_type == "REACTION_ADD":
+        channel = client.get_channel(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+        if len(message.embeds):
+            embed = message.embeds[0]
+            if payload.member.dm_channel is None:
+                await payload.member.create_dm()
+            con = VotingCon(payload.member.dm_channel, embed.description)
+            cons.append(con)
+            await con.go()
 
     for con in [x for x in cons if payload.channel_id == x.channel.id]:
         await con.reaction(payload)

@@ -158,13 +158,12 @@ values = {
     ",": 1.23, ".": -5, ":": 3, ";": 30, "?": 5.6, "!": -10, "&": 8, "%": 100, "*": 6.54, "<": -1, ">": 1, "ə": 42,
 }
 
-
 async def april_board(client, channel):
     cursor = client.dbconn.execute("SELECT * FROM users ORDER BY total DESC LIMIT 9")
     text = ""
 
     for i, row in enumerate(cursor):
-        text += "{}. {} (**{:.2f}points**)\n".format(i + 1, row["mention"], row["total"])
+        text += "{}. {} (**{:.2f}points**)\n".format(i + 1, (row["nick"] if row["nick"] else row["username"]), row["total"])
 
     text += "...\n"
     cursor = client.dbconn.execute("SELECT count(id) AS i FROM users")
@@ -173,7 +172,7 @@ async def april_board(client, channel):
 
     cursor = client.dbconn.execute("SELECT * FROM (SELECT * FROM users ORDER BY total ASC LIMIT 9) ORDER BY total DESC")
     for row in cursor:
-        text += "{}. {} (**{:.2f}points**)\n".format(i + 1, row["mention"], row["total"])
+        text += "{}. {} (**{:.2f}points**)\n".format(i + 1, (row["nick"] if row["nick"] else row["username"]), row["total"])
         i += 1
 
     embed = discord.Embed(title="The AprilBoard", description=text,
@@ -198,6 +197,7 @@ async def on_ready():
                              "user_id" INTEGER UNIQUE,
                              "mention" TEXT,
                              "username" TEXT,
+                             "nick" TEXT,
                              "total" NUMERIC DEFAULT 0,
                              PRIMARY KEY("id" AUTOINCREMENT)
                              );''')
@@ -225,7 +225,7 @@ async def on_message(message):
 
     if message.content.startswith('$egg'):
         await message.channel.send('EGG')
-        await message.delete()
+        # await message.delete()
 
     if message.content.startswith('!eddify') or message.content.startswith('!ellify'):
         await message.channel.send(message.content[8:].replace("l", "#").replace("d", "l").replace("#", "d").replace("L", "#").replace("D", "L").replace("#", "D"))
@@ -247,7 +247,7 @@ async def on_message(message):
         await client.change_presence(activity=discord.Game(name=message.content[8:]))
 
     # April Fools functionality
-    if message.content.startswith('!april_init') and message.author.guild_permissions.administrator:
+    if message.content.startswith('!init_april') and message.author.guild_permissions.administrator:
         await message.channel.send("Initialising Operation April...")
         async for member in icsf.fetch_members():
             string_id = str(member.id)
@@ -257,7 +257,16 @@ async def on_message(message):
         client.dbconn.commit()
         await message.channel.send("Much init, such done.")
 
-    if message.content.startswith('!aprilboard') and message.author.guild_permissions.administrator:
+    # April Fools functionality
+    if message.content.startswith('!nicks_april') and message.author.guild_permissions.administrator:
+        await message.channel.send("Initialising Operation April...")
+        async for member in icsf.fetch_members():
+            client.dbconn.execute("UPDATE users SET nick = ? WHERE user_id = ?",
+                                  (member.nick, member.id))
+        client.dbconn.commit()
+        await message.channel.send("Much init, such done.")
+
+    if message.content.startswith('!board_april') and message.author.guild_permissions.administrator:
         await april_board(client, message.channel)
 
     if message.content.startswith('!april'):
@@ -289,20 +298,24 @@ async def on_message(message):
                                   colour=discord.Colour.red())
             await message.channel.send(embed=embed)
             return
+        if abs(quality*prize) > 1000:
+            await message.channel.send("No.")
+            return
         client.dbconn.execute("INSERT INTO words (word, quality, prize) VALUES (?, ?, ?)",
                               (word, quality, prize))
         client.dbconn.commit()
 
     if not message.content.startswith('!'):
         # Calculate the naive point total
-        spaces = message.content.count(" ")
-        score = sum([values[x] for x in message.content if x in values]) / (spaces if spaces else 0.5)
+        # spaces = message.content.count(" ")
+        # score = sum([values[x] for x in message.content if x in values]) / (spaces if spaces else 0.5)
+        score = sum([values[x] for x in set(message.content) if x in values])
 
         # Find special words
         cursor = client.dbconn.execute("SELECT id, word, quality*prize AS payout FROM words WHERE quality>0.1")
         for row in cursor:
             if row["word"] in message.content:
-                embed = discord.Embed(description="You have found a **secret word**. For that, you get **{:.2f}points**".format(row["payout"]),
+                embed = discord.Embed(description="You have found a **secret word**. For that, you get **{:.2f}points**\n_Find out more in <#826951908832575490>_".format(row["payout"]),
                                       colour=discord.Colour.from_rgb(135, 169, 224))
                 await message.channel.send(embed=embed)
                 score += row["payout"]
@@ -318,8 +331,9 @@ async def on_message(message):
 
     if message.content.startswith('!compute') and message.author.guild_permissions.administrator:
         content = message.content[9:]
-        spaces = content.count(" ")
-        score = sum([values[x] for x in content if x in values]) / (spaces if spaces else 0.5)
+        # spaces = content.count(" ")
+        # score = sum([values[x] for x in content if x in values]) / (spaces if spaces else 0.5)
+        score = sum([values[x] for x in set(message.content) if x in values])
         await message.channel.send(score)
 
     # Conversations

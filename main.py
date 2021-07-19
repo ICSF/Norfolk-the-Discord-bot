@@ -2,7 +2,7 @@ import discord
 import secrets
 from asyncio import sleep
 from aiohttp import ClientSession, BasicAuth
-# from io import BytesIO
+from re import sub
 
 
 class Conversation:
@@ -185,13 +185,28 @@ async def on_message(message):
         await client.change_presence(activity=discord.Game(name=message.content[8:]))
 
     if message.content.startswith('!spoiler'):
+        # Fetch the attachments and save a user mention
         files = [await f.to_file(spoiler=True) for f in message.attachments]
-        # fnames = [f.filename for f in message.attachments]
-        # for a in message.attachments:
-        #     files.append(BytesIO())
-        #     await a.save(files[-1])
-        # await message.channel.send(files=[discord.File(f, fnames[i], spoiler=True) for i, f in enumerate(files)])
-        await message.channel.send(files=files)
+        mention = message.author.mention
+
+        # Fetch the content of the message, stripping the command
+        if len(message.content) > 8:
+            text = message.content[8:]
+            text = text[1:] if text[0]==" " else text
+        else:
+            text = ""
+
+        # Regex from https://stackoverflow.com/a/3809435/3844752, modified to exclude ending dot
+        # Add spoiler tags to links
+        text = sub(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)([-a-zA-Z0-9()@:%_\+~#?&//=]+)',
+                   r'||\g<0> ||', text)
+
+        # Delete the original message and send spoilered
+        if len(files) or len(text):
+            await message.delete()
+            await message.channel.send("**{} (with `!spoiler`):** {}".format(mention, text), files=files)
+        else:
+            await message.channel.send("There was nothing to spoiler in your message, please include links or attachments.")
 
     for con in [x for x in cons if message.channel == x.channel]:
         await con.receive(message)

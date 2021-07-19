@@ -2,6 +2,7 @@ import discord
 import secrets
 from asyncio import sleep
 from aiohttp import ClientSession, BasicAuth
+# from io import BytesIO
 
 
 class Conversation:
@@ -182,6 +183,15 @@ async def on_message(message):
 
     if message.content.startswith('!playing') and message.author.guild_permissions.administrator:
         await client.change_presence(activity=discord.Game(name=message.content[8:]))
+
+    if message.content.startswith('!spoiler'):
+        files = [await f.to_file(spoiler=True) for f in message.attachments]
+        # fnames = [f.filename for f in message.attachments]
+        # for a in message.attachments:
+        #     files.append(BytesIO())
+        #     await a.save(files[-1])
+        # await message.channel.send(files=[discord.File(f, fnames[i], spoiler=True) for i, f in enumerate(files)])
+        await message.channel.send(files=files)
 
     for con in [x for x in cons if message.channel == x.channel]:
         await con.receive(message)
